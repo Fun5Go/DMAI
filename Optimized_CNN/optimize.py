@@ -10,15 +10,19 @@ import random
 import matplotlib.pyplot as plt
 import os
 import sys
+# Add project root to path and set cwd
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+os.chdir(project_root)
+print("Current working dir set to:", os.getcwd())
+
 from Simple_CNN.model import SimpleCNN
 from support import load_dataset
-
 # ---------- Parameters ----------
 BATCH_SIZE = 4
 NUM_CLASSES = 2
 KFOLD_SPLITS = 5
-EPOCHS = 10
+EPOCHS = 20
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # ---------- Load full training dataset ----------
@@ -104,8 +108,8 @@ def cross_validate(hparams):
             print(f"Epoch {epoch+1:02d}: Train Loss={epoch_train_loss:.4f}, Train Acc={epoch_train_acc:.4f} | Val Loss={epoch_val_loss:.4f}, Val Acc={epoch_val_acc:.4f}")
 
             # Early stopping if validation accuracy doesn't change across epochs
-            if fold == 0 and len(fold_val_acc) >= 10 and all(val == fold_val_acc[-1] for val in fold_val_acc[-10:]):
-                print("Early stopping: validation accuracy has not changed for 10 epochs.")
+            if fold == 0 and len(fold_val_acc) >= 15 and all(val == fold_val_acc[-1] for val in fold_val_acc[-15:]):
+                print("Early stopping: validation accuracy has not changed for 15 epochs.")
                 return 0.0  # Skip this trial completely  # Skip this trial completely
 
         train_loss_curve.append(fold_train_losses)
