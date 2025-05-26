@@ -1,0 +1,6 @@
+/WF-data/
+/*.png
+*.zip
+/*.pdf
+.git/
+.idea/
