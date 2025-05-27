@@ -10,6 +10,7 @@ import random
 import matplotlib.pyplot as plt
 import os
 import sys
+
 # Add project root to path and set cwd
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
@@ -18,19 +19,21 @@ print("Current working dir set to:", os.getcwd())
 
 from Simple_CNN.model import SimpleCNN
 from support import load_dataset
+
 # ---------- Parameters ----------
 BATCH_SIZE = 4
 NUM_CLASSES = 2
 KFOLD_SPLITS = 5
 EPOCHS = 20
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+SAVE_DIR_Plots = './Plots/TPE'
+SAVE_DIR_Models = './Models/TPE'
+os.makedirs(SAVE_DIR_Models, exist_ok=True)
+os.makedirs(SAVE_DIR_Plots, exist_ok=True)
+BEST_MODEL = {'accuracy': 0.0, 'params': None}
 
 # ---------- Load full training dataset ----------
 dataset, _ = load_dataset()
-
-# ------------ Save directory for plots ------------
-SAVE_DIR_Plots = './Plots/TPE'
-os.makedirs(SAVE_DIR_Plots, exist_ok=True)
 
 # ---------- 5-Fold Cross Validation Function ----------
 def cross_validate(hparams):
@@ -52,7 +55,8 @@ def cross_validate(hparams):
 
         model = SimpleCNN(
             num_filters=hparams['num_filters'],
-            dropout=hparams['dropout']
+            dropout=hparams['dropout'],
+            n_layers=hparams['n_layers']
         ).to(DEVICE)
 
         optimizer = optim.Adam(model.parameters(), lr=hparams['lr'])
@@ -63,9 +67,7 @@ def cross_validate(hparams):
         fold_train_acc = []
         fold_val_acc = []
 
-
         for epoch in range(EPOCHS):
-            # Training
             model.train()
             train_loss = 0.0
             train_correct, train_total = 0, 0
@@ -86,7 +88,6 @@ def cross_validate(hparams):
             fold_train_losses.append(epoch_train_loss)
             fold_train_acc.append(epoch_train_acc)
 
-            # Validation
             model.eval()
             val_loss = 0.0
             val_correct, val_total = 0, 0
@@ -107,17 +108,15 @@ def cross_validate(hparams):
 
             print(f"Epoch {epoch+1:02d}: Train Loss={epoch_train_loss:.4f}, Train Acc={epoch_train_acc:.4f} | Val Loss={epoch_val_loss:.4f}, Val Acc={epoch_val_acc:.4f}")
 
-            # Early stopping if validation accuracy doesn't change across epochs
             if fold == 0 and len(fold_val_acc) >= 15 and all(val == fold_val_acc[-1] for val in fold_val_acc[-15:]):
                 print("Early stopping: validation accuracy has not changed for 15 epochs.")
-                return 0.0  # Skip this trial completely  # Skip this trial completely
+                return 0.0
 
         train_loss_curve.append(fold_train_losses)
         val_loss_curve.append(fold_val_losses)
         train_acc_curve.append(fold_train_acc)
         val_acc_curve.append(fold_val_acc)
 
-        # Final validation accuracy after all epochs
         model.eval()
         correct, total = 0, 0
         with torch.no_grad():
@@ -133,7 +132,7 @@ def cross_validate(hparams):
     print(f"Final avg val accuracy: {avg_accuracy:.4f}")
 
     param_str = f"lr{hparams['lr']:.0e}_do{hparams['dropout']:.2f}_nf{hparams['num_filters']}_bs{hparams['batch_size']}_nl{hparams['n_layers']}"
-    # Plot average loss and accuracy curves across folds
+
     avg_train_loss = [sum(epoch_vals)/len(epoch_vals) for epoch_vals in zip(*train_loss_curve)]
     avg_val_loss = [sum(epoch_vals)/len(epoch_vals) for epoch_vals in zip(*val_loss_curve)]
     avg_train_acc = [sum(epoch_vals)/len(epoch_vals) for epoch_vals in zip(*train_acc_curve)]
@@ -161,17 +160,25 @@ def cross_validate(hparams):
     plt.savefig(os.path.join(SAVE_DIR_Plots, f"acc_curve_avg_{param_str}.png"))
     plt.close()
 
-    plt.figure()
-    for i, (train_acc, val_acc) in enumerate(zip(train_acc_curve, val_acc_curve)):
-        plt.plot(train_acc, linestyle='--', label=f'Train Acc Fold {i+1}')
-        plt.plot(val_acc, linestyle='-', label=f'Val Acc Fold {i+1}')
-    plt.xlabel('Epoch')
-    plt.ylabel('Accuracy')
-    plt.title(f"Accuracy Curves per Fold - {param_str}")
-    plt.legend()
-    plt.grid(True)
-    plt.savefig(os.path.join(SAVE_DIR_Plots, f"acc_curve_folds_{param_str}.png"))
-    plt.close()
+    # plt.figure()
+    # for i, (train_acc, val_acc) in enumerate(zip(train_acc_curve, val_acc_curve)):
+    #     plt.plot(train_acc, linestyle='--', label=f'Train Acc Fold {i+1}')
+    #     plt.plot(val_acc, linestyle='-', label=f'Val Acc Fold {i+1}')
+    # plt.xlabel('Epoch')
+    # plt.ylabel('Accuracy')
+    # plt.title(f"Accuracy Curves per Fold - {param_str}")
+    # plt.legend()
+    # plt.grid(True)
+    # plt.savefig(os.path.join(SAVE_DIR_Plots, f"acc_curve_folds_{param_str}.png"))
+    # plt.close()
+
+    # Save best model
+    if avg_accuracy > BEST_MODEL['accuracy']:
+        BEST_MODEL['accuracy'] = avg_accuracy
+        BEST_MODEL['params'] = hparams
+        model_save_path = os.path.join(SAVE_DIR_Models, f"best_model_{avg_accuracy:.4f}.pth")
+        torch.save(model.state_dict(), model_save_path)
+        print(f"New best model saved to {model_save_path}")
 
     return avg_accuracy
 
@@ -188,9 +195,9 @@ def objective(trial):
 
 # ---------- Run Optimization ----------
 print("Starting hyperparameter optimization with Optuna...")
-study = optuna.create_study(direction='maximize', sampler=TPESampler()) # Bayesian optimization - TPE
+study = optuna.create_study(direction='maximize', sampler=TPESampler())
 study.optimize(objective, n_trials=10)
-# study = optuna.create_study(direction='maximize', sampler=RandomSampler()) # Random search
-# study.optimize(objective, n_trials=20)
 print("Best trial:")
 print(study.best_trial)
+print(f"Best model accuracy: {BEST_MODEL['accuracy']:.4f}")
+print(f"Best model parameters: {BEST_MODEL['params']}")
