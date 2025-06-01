@@ -3,3 +3,4 @@ torchvision>=0.15.0
 scikit-learn>=1.0
 optuna>=3.0.0
 matplotlib>=3.5
+seaborn>=0.13.2

@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
-from model import SimpleCNN
+from Simple_CNN.model import SimpleCNN
 from support import load_dataset
 import matplotlib.pyplot as plt
 from collections import Counter
@@ -13,8 +13,8 @@ os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 os.makedirs("./Plots", exist_ok=True)
 os.makedirs("./Models", exist_ok=True)
 
-EPOCHS = 40
-BATCH_SIZE = 4
+EPOCHS = 100
+BATCH_SIZE = 32
 LR = 1e-4
 
 # ---------- Load dataset ----------

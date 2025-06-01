@@ -1,7 +1,7 @@
 import torch
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
-from model import SimpleCNN
+from Simple_CNN.model import SimpleCNN
 from support import load_dataset
 from collections import Counter
 import matplotlib.pyplot as plt
@@ -10,7 +10,7 @@ from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 
 # ---------- Parameters ----------
 BATCH_SIZE = 4
-MODEL_PATH = 'Models/simplecnn_finetuned.pth'
+MODEL_PATH = 'Model output/simplecnn_finetuned.pth'
 
 # ---------- Load test dataset ----------
 _, test_dataset = load_dataset()
